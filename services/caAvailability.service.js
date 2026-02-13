@@ -1,4 +1,4 @@
-// Backend/services/caAvailability.service.js
+// Backend/services/caAvailability.service.js - PRODUCTION READY
 import admin from 'firebase-admin';
 
 const getDb = () => admin.firestore();
@@ -29,7 +29,7 @@ export const isCAAvailable = async (businessId, caId, date, timeSlot, duration) 
     const caDoc = await businessRef.collection('CA').doc(caId).get();
 
     if (!caDoc.exists) {
-      console.log(`CA ${caId} not found`);
+      console.error(`❌ CA ${caId} not found`);
       return false;
     }
 
@@ -59,12 +59,9 @@ export const isCAAvailable = async (businessId, caId, date, timeSlot, duration) 
       const slotEndMinutes = slotEndHour * 60 + slotEndMinute;
 
       // Check for overlap
-      // Appointment is blocked if it starts before unavailable slot ends AND ends after unavailable slot starts
       const hasOverlap = appointmentStartMinutes < slotEndMinutes && appointmentEndMinutes > slotStartMinutes;
 
       if (hasOverlap) {
-        console.log(`❌ CA ${caId} is unavailable on ${date} from ${slot.start_time} to ${slot.end_time}`);
-        console.log(`   Appointment: ${timeSlot} (${duration} min) conflicts with unavailable slot`);
         return false;
       }
     }
@@ -72,7 +69,7 @@ export const isCAAvailable = async (businessId, caId, date, timeSlot, duration) 
     return true; // No conflicts found, CA is available
 
   } catch (error) {
-    console.error('Error checking CA availability:', error);
+    console.error('❌ Error checking CA availability:', error);
     return false; // On error, consider unavailable for safety
   }
 };
@@ -108,11 +105,10 @@ export const getAvailableCAs = async (businessId, date, timeSlot, duration) => {
       }
     }
 
-    console.log(`✅ Found ${availableCAs.length} available CAs for ${date} ${timeSlot}`);
     return availableCAs;
 
   } catch (error) {
-    console.error('Error getting available CAs:', error);
+    console.error('❌ Error getting available CAs:', error);
     return [];
   }
 };
@@ -130,7 +126,7 @@ export const autoAssignCA = async (businessId, date, timeSlot, duration) => {
     const availableCAs = await getAvailableCAs(businessId, date, timeSlot, duration);
 
     if (availableCAs.length === 0) {
-      console.log('❌ No available CAs for auto-assignment');
+      console.error('❌ No available CAs for auto-assignment');
       return null;
     }
 
@@ -138,11 +134,10 @@ export const autoAssignCA = async (businessId, date, timeSlot, duration) => {
     // You can implement more complex logic here (e.g., load balancing, specialization matching)
     const assignedCA = availableCAs[0];
     
-    console.log(`✅ Auto-assigned CA: ${assignedCA.name} (${assignedCA.id})`);
     return assignedCA;
 
   } catch (error) {
-    console.error('Error auto-assigning CA:', error);
+    console.error('❌ Error auto-assigning CA:', error);
     return null;
   }
 };

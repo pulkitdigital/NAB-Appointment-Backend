@@ -1,6 +1,6 @@
 // Backend/services/firebase.service.js
 import { db, admin } from '../config/firebase.js';
-import { getCurrentCounter } from '../utils/referenceIdHelper.js'; // ✅ UPDATED: Changed from genuineIdHelper
+import { getCurrentCounter } from '../utils/referenceIdHelper.js';
 
 /**
  * Generate readable ID from name

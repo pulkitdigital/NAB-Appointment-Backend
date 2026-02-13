@@ -1,6 +1,4 @@
-// Backend/services/imageUpload.service.js
-// ✅ CLOUDINARY VERSION WITHOUT UPLOAD PRESET - Using signed uploads
-
+// Backend/services/imageUpload.service.js - PRODUCTION READY
 import crypto from 'crypto';
 
 /**
@@ -27,8 +25,6 @@ const generateSignature = (paramsToSign, apiSecret) => {
  */
 export const uploadImage = async (base64Image, folder = 'ca-profiles', customName = null) => {
   try {
-    console.log('📤 Starting Cloudinary image upload...');
-
     // Validate base64 format
     const matches = base64Image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
     if (!matches || matches.length !== 3) {
@@ -52,8 +48,6 @@ export const uploadImage = async (base64Image, folder = 'ca-profiles', customNam
       throw new Error(`File size exceeds 5MB limit (current: ${sizeInMB.toFixed(2)}MB)`);
     }
 
-    console.log(`📊 Image size: ${sizeInMB.toFixed(2)}MB`);
-
     // Get Cloudinary credentials from environment
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
@@ -66,17 +60,14 @@ export const uploadImage = async (base64Image, folder = 'ca-profiles', customNam
     // Generate timestamp
     const timestamp = Math.round(new Date().getTime() / 1000);
 
-    // ✅ Create slugified public_id from custom name
+    // Create slugified public_id from custom name
     let publicId = null;
     if (customName) {
-      // Convert name to lowercase, replace spaces and special chars with hyphens
       publicId = customName
         .toLowerCase()
         .trim()
-        .replace(/[^a-z0-9]+/g, '-') // Replace non-alphanumeric chars with hyphen
-        .replace(/^-+|-+$/g, ''); // Remove leading/trailing hyphens
-      
-      console.log(`📝 Using custom public_id: ${publicId}`);
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '');
     }
 
     // Prepare upload parameters
@@ -106,8 +97,6 @@ export const uploadImage = async (base64Image, folder = 'ca-profiles', customNam
       formData.append('public_id', publicId);
     }
 
-    console.log('📝 Upload params:', { folder, timestamp, public_id: publicId || 'auto-generated' });
-
     // Upload to Cloudinary
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
@@ -124,14 +113,7 @@ export const uploadImage = async (base64Image, folder = 'ca-profiles', customNam
     }
 
     const result = await response.json();
-    const publicUrl = result.secure_url;
-
-    console.log('✅ Image uploaded successfully to Cloudinary');
-    console.log('🔗 URL:', publicUrl);
-    console.log('📂 Folder:', result.folder);
-    console.log('🆔 Public ID:', result.public_id);
-
-    return publicUrl;
+    return result.secure_url;
 
   } catch (error) {
     console.error('❌ Cloudinary upload error:', error.message);
@@ -147,19 +129,15 @@ export const uploadImage = async (base64Image, folder = 'ca-profiles', customNam
 export const deleteImage = async (imageUrl) => {
   try {
     if (!imageUrl) {
-      console.log('⚠️ No image URL provided for deletion');
       return false;
     }
 
-    console.log('🗑️ Deleting Cloudinary image:', imageUrl);
-
     // Extract public_id from URL
-    // URL format: https://res.cloudinary.com/cloud_name/image/upload/v123/ca-profiles/filename.jpg
     const urlParts = imageUrl.split('/');
     const uploadIndex = urlParts.indexOf('upload');
     
     if (uploadIndex === -1) {
-      console.warn('⚠️ Invalid Cloudinary URL format');
+      console.error('❌ Invalid Cloudinary URL format');
       return false;
     }
 
@@ -168,15 +146,13 @@ export const deleteImage = async (imageUrl) => {
     // Remove extension
     const publicId = publicIdWithExt.replace(/\.[^/.]+$/, '');
 
-    console.log('🔑 Public ID:', publicId);
-
     // Get Cloudinary credentials
     const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
     const apiKey = process.env.CLOUDINARY_API_KEY;
     const apiSecret = process.env.CLOUDINARY_API_SECRET;
 
     if (!cloudName || !apiKey || !apiSecret) {
-      console.warn('⚠️ Cloudinary delete credentials missing in .env');
+      console.error('❌ Cloudinary delete credentials missing in .env');
       return false;
     }
 
@@ -204,16 +180,14 @@ export const deleteImage = async (imageUrl) => {
     const result = await response.json();
 
     if (result.result === 'ok') {
-      console.log('✅ Image deleted successfully from Cloudinary');
       return true;
     } else {
-      console.warn('⚠️ Cloudinary delete response:', result);
+      console.error('❌ Cloudinary delete failed:', result);
       return false;
     }
 
   } catch (error) {
     console.error('❌ Cloudinary delete error:', error.message);
-    // Don't throw error, just log and return false
     return false;
   }
 };
@@ -229,18 +203,14 @@ export const deleteImage = async (imageUrl) => {
  */
 export const updateProfilePicture = async (newImageBase64, oldImageUrl = null, customName = null) => {
   try {
-    console.log('🔄 Updating profile picture...');
-
     // Upload new image first
     const newImageUrl = await uploadImage(newImageBase64, 'ca-profiles', customName);
 
     // Delete old image if exists
     if (oldImageUrl) {
-      console.log('🗑️ Deleting old profile picture...');
       await deleteImage(oldImageUrl);
     }
 
-    console.log('✅ Profile picture updated successfully');
     return newImageUrl;
 
   } catch (error) {

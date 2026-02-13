@@ -40,3 +40,4 @@ dist/
 build/
 .env
 test-env.js
+test-env.js

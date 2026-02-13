@@ -1,6 +1,4 @@
-// Backend/controllers/admin.controller.js
-// ✅ FINAL VERSION - With CA name as Cloudinary public_id
-
+// Backend/controllers/admin.controller.js - COMPLETE VERSION
 import admin from 'firebase-admin';
 import {
   getCAList,
@@ -28,7 +26,7 @@ const getBusinessRef = (businessId) => {
 // ==================== DASHBOARD ====================
 
 /**
- * GET /api/admin/dashboard/stats?businessId=abc-consultants
+ * GET /api/admin/dashboard/stats?businessId=nab-consultancy
  * Get dashboard statistics
  */
 export const getDashboard = async (req, res) => {
@@ -41,8 +39,6 @@ export const getDashboard = async (req, res) => {
         message: 'Business ID is required'
       });
     }
-
-    console.log('📊 Fetching dashboard stats for:', businessId);
 
     const businessRef = getBusinessRef(businessId);
 
@@ -111,7 +107,7 @@ export const getDashboard = async (req, res) => {
 // ==================== APPOINTMENTS ====================
 
 /**
- * GET /api/admin/appointments?businessId=abc-consultants&status=pending&date=2026-02-10
+ * GET /api/admin/appointments?businessId=nab-consultancy&status=pending&date=2026-02-10
  * Get all appointments with filters
  */
 export const getAppointments = async (req, res) => {
@@ -124,8 +120,6 @@ export const getAppointments = async (req, res) => {
         message: 'Business ID is required'
       });
     }
-
-    console.log('📋 Fetching appointments:', { businessId, status, date, ca_id });
 
     const businessRef = getBusinessRef(businessId);
     let query = businessRef.collection('appointments');
@@ -171,7 +165,7 @@ export const getAppointments = async (req, res) => {
             };
           }
         } catch (error) {
-          console.error(`Failed to fetch CA ${data.assigned_ca}:`, error);
+          console.error(`❌ Failed to fetch CA ${data.assigned_ca}:`, error);
         }
       }
 
@@ -229,8 +223,6 @@ export const updateStatus = async (req, res) => {
       });
     }
 
-    console.log('🔄 Updating appointment status:', { appointmentId, status });
-
     await updateAppointment(businessId, appointmentId, { status });
 
     res.json({
@@ -269,8 +261,6 @@ export const assignCA = async (req, res) => {
         message: 'CA ID is required'
       });
     }
-
-    console.log('👤 Assigning CA:', { appointmentId, ca_id });
 
     // Verify CA exists
     const businessRef = getBusinessRef(businessId);
@@ -315,8 +305,6 @@ export const updateAppointmentDetails = async (req, res) => {
       });
     }
 
-    console.log('✏️ Updating appointment:', appointmentId);
-
     await updateAppointment(businessId, appointmentId, updateData);
 
     res.json({
@@ -336,7 +324,7 @@ export const updateAppointmentDetails = async (req, res) => {
 // ==================== CA MANAGEMENT ====================
 
 /**
- * GET /api/admin/ca/list?businessId=abc-consultants
+ * GET /api/admin/ca/list?businessId=nab-consultancy
  * Get all CAs with profile pictures
  */
 export const getCAs = async (req, res) => {
@@ -349,8 +337,6 @@ export const getCAs = async (req, res) => {
         message: 'Business ID is required'
       });
     }
-
-    console.log('👥 Fetching CAs for:', businessId);
 
     const businessRef = getBusinessRef(businessId);
     const casSnapshot = await businessRef.collection('CA').get();
@@ -373,8 +359,6 @@ export const getCAs = async (req, res) => {
       });
     });
 
-    console.log(`✅ Returning ${cas.length} CAs`);
-
     res.json({
       success: true,
       data: { cas }
@@ -391,7 +375,7 @@ export const getCAs = async (req, res) => {
 
 /**
  * POST /api/admin/ca/create
- * Create new CA with profile picture (uses CA name as public_id)
+ * Create new CA with profile picture
  */
 export const createCA = async (req, res) => {
   try {
@@ -411,19 +395,14 @@ export const createCA = async (req, res) => {
       });
     }
 
-    console.log('➕ Creating CA:', { name, email });
-
     let profilePictureUrl = null;
 
-    // ✅ Upload profile picture if provided (with CA name as public_id)
+    // ✅ Upload profile picture if provided
     if (profile_picture && profile_picture.startsWith('data:image')) {
       try {
-        console.log('📤 Uploading profile picture for new CA...');
-        profilePictureUrl = await uploadImage(profile_picture, 'ca-profiles', name); // ✅ Pass CA name
-        console.log('✅ Profile picture uploaded:', profilePictureUrl);
+        profilePictureUrl = await uploadImage(profile_picture, 'ca-profiles', name);
       } catch (uploadError) {
         console.error('⚠️ Profile picture upload failed:', uploadError.message);
-        // Continue without profile picture - don't fail the entire operation
       }
     }
 
@@ -459,7 +438,7 @@ export const createCA = async (req, res) => {
 
 /**
  * PATCH /api/admin/ca/:caId
- * Update CA with optional profile picture update (uses CA name as public_id)
+ * Update CA with optional profile picture update
  */
 export const updateCA = async (req, res) => {
   try {
@@ -473,12 +452,9 @@ export const updateCA = async (req, res) => {
       });
     }
 
-    console.log('✏️ Updating CA:', caId);
-
     const businessRef = getBusinessRef(businessId);
     const caRef = businessRef.collection('CA').doc(caId);
 
-    // Check if CA exists
     const caDoc = await caRef.get();
     if (!caDoc.exists) {
       return res.status(404).json({
@@ -490,52 +466,39 @@ export const updateCA = async (req, res) => {
     const currentData = caDoc.data();
     let finalUpdateData = { ...updateData };
 
-    // ✅ Get the CA name for image upload (use updated name if provided, otherwise current name)
     const caName = updateData.name || currentData.name;
 
     // ✅ Handle profile picture update
     if (profile_picture !== undefined) {
       if (profile_picture === null) {
-        // User wants to remove profile picture
-        console.log('🗑️ Removing profile picture...');
         if (currentData.profile_picture) {
           await deleteImage(currentData.profile_picture);
         }
         finalUpdateData.profile_picture = null;
       } else if (profile_picture.startsWith('data:image')) {
-        // User wants to upload new profile picture
         try {
-          console.log('📤 Updating profile picture...');
           const newImageUrl = await updateProfilePicture(
             profile_picture,
-            currentData.profile_picture, // Delete old image
-            caName // ✅ Use CA name as public_id
+            currentData.profile_picture,
+            caName
           );
           finalUpdateData.profile_picture = newImageUrl;
-          console.log('✅ Profile picture updated:', newImageUrl);
         } catch (uploadError) {
           console.error('⚠️ Profile picture update failed:', uploadError.message);
-          // Don't update profile_picture field if upload failed
           delete finalUpdateData.profile_picture;
         }
-      }
-      // If profile_picture is a URL (unchanged), don't include it in update
-      else if (profile_picture.startsWith('http')) {
+      } else if (profile_picture.startsWith('http')) {
         delete finalUpdateData.profile_picture;
       }
     }
 
-    // Update CA in Firestore
     await caRef.update({
       ...finalUpdateData,
       updated_at: admin.firestore.FieldValue.serverTimestamp()
     });
 
-    // Get updated data
     const updatedDoc = await caRef.get();
     const updatedData = updatedDoc.data();
-
-    console.log('✅ CA updated successfully');
 
     res.json({
       success: true,
@@ -556,7 +519,7 @@ export const updateCA = async (req, res) => {
 };
 
 /**
- * DELETE /api/admin/ca/:caId?businessId=abc-consultants
+ * DELETE /api/admin/ca/:caId?businessId=nab-consultancy
  * Delete CA and its profile picture
  */
 export const deleteCA = async (req, res) => {
@@ -571,22 +534,16 @@ export const deleteCA = async (req, res) => {
       });
     }
 
-    console.log('🗑️ Deleting CA:', caId);
-
-    // Get CA data to delete profile picture
     const businessRef = getBusinessRef(businessId);
     const caDoc = await businessRef.collection('CA').doc(caId).get();
 
     if (caDoc.exists) {
       const caData = caDoc.data();
-      // Delete profile picture from Cloudinary if exists
       if (caData.profile_picture) {
-        console.log('🗑️ Deleting CA profile picture from Cloudinary...');
         await deleteImage(caData.profile_picture);
       }
     }
 
-    // Delete CA document from Firestore
     await deleteCAService(businessId, caId);
 
     res.json({
@@ -606,7 +563,7 @@ export const deleteCA = async (req, res) => {
 // ==================== SETTINGS ====================
 
 /**
- * GET /api/admin/settings?businessId=abc-consultants
+ * GET /api/admin/settings?businessId=nab-consultancy
  */
 export const getSystemSettings = async (req, res) => {
   try {
@@ -618,8 +575,6 @@ export const getSystemSettings = async (req, res) => {
         message: 'Business ID is required'
       });
     }
-
-    console.log('⚙️ Fetching settings for:', businessId);
 
     const settings = await getSystemSettingsService(businessId);
 
@@ -650,8 +605,6 @@ export const updateSystemSettings = async (req, res) => {
         message: 'Business ID is required'
       });
     }
-
-    console.log('💾 Updating settings for:', businessId);
 
     await updateSystemSettingsService(businessId, settingsData);
 
@@ -689,8 +642,6 @@ export const addOffDay = async (req, res) => {
         message: 'Date is required'
       });
     }
-
-    console.log('📅 Adding off day:', date);
 
     const businessRef = getBusinessRef(businessId);
     const settingsRef = businessRef.collection('system').doc('settings');
@@ -734,8 +685,6 @@ export const removeOffDay = async (req, res) => {
       });
     }
 
-    console.log('🗑️ Removing off day:', date);
-
     const businessRef = getBusinessRef(businessId);
     const settingsRef = businessRef.collection('system').doc('settings');
 
@@ -750,6 +699,58 @@ export const removeOffDay = async (req, res) => {
 
   } catch (error) {
     console.error('❌ Error removing off day:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// ==================== COUNTER MANAGEMENT ====================
+
+/**
+ * POST /api/admin/counter/reset
+ * ✅ NEW: Reset reference ID counter to 0
+ */
+export const resetCounter = async (req, res) => {
+  try {
+    const { businessId } = req.body;
+
+    if (!businessId) {
+      return res.status(400).json({
+        success: false,
+        message: 'Business ID is required'
+      });
+    }
+
+    const db = getDb();
+    const counterRef = db
+      .collection('businesses')
+      .doc(businessId)
+      .collection('system')
+      .doc('counters')
+      .collection('reference_id')
+      .doc('counter');
+
+    // Reset to 0
+    await counterRef.set({
+      year: new Date().getFullYear(),
+      counter: 0,
+      updated_at: admin.firestore.FieldValue.serverTimestamp()
+    });
+
+    res.json({
+      success: true,
+      message: 'Counter reset to 0 successfully',
+      data: {
+        year: new Date().getFullYear(),
+        counter: 0,
+        next_id: `NAB_${new Date().getFullYear()}_0001`
+      }
+    });
+
+  } catch (error) {
+    console.error('❌ Error resetting counter:', error);
     res.status(500).json({
       success: false,
       message: error.message
