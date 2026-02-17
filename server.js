@@ -1,15 +1,17 @@
 // Backend/server.js - COMPLETE VERSION WITH HOURLY REMINDER SCHEDULER
+import dotenv from 'dotenv';
+dotenv.config();
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
+
 import { initializeFirebase } from './config/firebase.js';
 import bookingRoutes from './routes/booking.routes.js';
 import adminRoutes from './routes/admin.routes.js';
 // ✅ Import hourly reminder scheduler
 import reminderScheduler from './services/reminderScheduler.service.js';
-
+import authRoutes from './routes/auth.routes.js';
 // ✅ Load environment variables FIRST
-dotenv.config();
+
 
 // Initialize Express app
 const app = express();
@@ -25,6 +27,18 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// ✅ Auth routes (PUBLIC - login ke liye)
+
+app.use('/api/auth', authRoutes);
+
+// ✅ Admin routes (PROTECTED - verifyToken middleware andar hai)
+// const adminRoutes = require('./routes/admin.routes');
+app.use('/api/admin', adminRoutes);
+
+// ✅ Booking routes (PUBLIC - users ke liye)
+// const bookingRoutes = require('./routes/booking.routes');
+app.use('/api/booking', bookingRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -53,8 +67,7 @@ app.get('/test-reminder', async (req, res) => {
 });
 
 // API Routes
-app.use('/api/booking', bookingRoutes);
-app.use('/api/admin', adminRoutes);
+// app.use('/api/admin', adminRoutes);
 
 // 404 handler
 app.use((req, res) => {
